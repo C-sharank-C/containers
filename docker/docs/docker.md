@@ -320,17 +320,218 @@ volume` 方式，只需要一个名字 `-v db-data:/app
 
 
 
+## 多容器通信
+
+### 学习目标
+
+项目往往都不是独立运行的，需要数据库、缓存这些东西配合运作。
+这节我们把前面的 Web 项目增加一个 Redis 依赖，多跑一个 Redis 容器，演示如何多容器之间的通信。
+
+> 本文档课件配套 [视频教程](https://www.bilibili.com/video/BV11L411g7U1?p=5)
+
+### 创建虚拟网络
+
+要想多容器之间互通，从 Web 容器访问 Redis 容器，我们只需要把他们放到同个网络中就可以了。
+
+文档参考：https://docs.docker.com/engine/reference/commandline/network/
+
+### 演示
+
+##### 创建一个名为`test-net`的网络：
+
+```
+docker network create test-net
+```
+
+##### 运行 Redis 在 `test-net` 网络中，别名`redis`
+
+```
+docker run -d --name redis --network test-net --network-alias redis redis:latest
+```
+
+##### 修改代码中访问`redis`的地址为网络别名
+
+![image.png](E:\NoteFiles\containers\docker\images\redis_addr.png)
+
+##### 运行 Web 项目，使用同个网络
+
+```
+docker run -p 8080:8080 --name test -v D:/test:/app --network test-net -d test:v1
+```
+
+##### 查看数据
+
+`http://localhost:8080/redis`
+容器终端查看数据是否一致
+
+### 更多相关命令
+
+`docker ps` 查看当前运行中的容器
+`docker images` 查看镜像列表
+`docker rm container-id` 删除指定 id 的容器
+`docker stop/start container-id` 停止/启动指定 id 的容器
+`docker rmi image-id` 删除指定 id 的镜像
+`docker volume ls` 查看 volume 列表
+`docker network ls` 查看网络列表
+
+## Docker-Compose
+
+### 现存问题
+
+在上节，我们运行了两个容器：Web 项目 + Redis
+如果项目依赖更多的第三方软件，我们需要管理的容器就更加多，每个都要单独配置运行，指定网络。
+这节，我们使用 docker-compose 把项目的多个服务集合到一起，一键运行。
+
+> 本文档课件配套 [视频教程](https://www.bilibili.com/video/BV11L411g7U1?p=6)
+
+### 安装 Docker Compose
+
+- 如果你是安装的桌面版 Docker，不需要额外安装，已经包含了。
+- 如果是没图形界面的服务器版 Docker，你需要单独安装 [安装文档](https://docs.docker.com/compose/install/#install-compose-on-linux-systems)
+- 运行`docker-compose`检查是否安装成功
+
+### 编写脚本
+
+要把项目依赖的多个服务集合到一起，我们需要编写一个`docker-compose.yml`文件，描述依赖哪些服务
+参考文档：https://docs.docker.com/compose/
+
+```
+version: "3.7"
+
+services:
+  app:
+    build: ./
+    ports:
+      - 80:8080
+    volumes:
+      - ./:/app
+    environment:
+      - TZ=Asia/Shanghai
+  redis:
+    image: redis:5.0.13
+    volumes:
+      - redis:/data
+    environment:
+      - TZ=Asia/Shanghai
+
+volumes:
+  redis:
+```
+
+> 容器默认时间不是北京时间，增加 TZ=Asia/Shanghai 可以改为北京时间
+
+### 跑起来
+
+在`docker-compose.yml` 文件所在目录，执行：`docker-compose up`就可以跑起来了。
+命令参考：https://docs.docker.com/compose/reference/up/
+
+### 更多相关命令
+
+在后台运行只需要加一个 -d 参数`docker-compose up -d`
+查看运行状态：`docker-compose ps`
+停止运行：`docker-compose stop`
+重启：`docker-compose restart`
+重启单个服务：`docker-compose restart service-name`
+进入容器命令行：`docker-compose exec service-name sh`
+查看容器运行log：`docker-compose logs [service-name]`
+
+## 发布和部署
+
+### 镜像仓库介绍
+
+镜像仓库用来存储我们 build 出来的“安装包”，Docker 官方提供了一个 [镜像库](https://hub.docker.com/)，里面包含了大量镜像，基本各种软件所需依赖都有，要什么直接上去搜索。
+
+我们也可以把自己 build 出来的镜像上传到 docker 提供的镜像库中，方便传播。
+当然你也可以搭建自己的私有镜像库，或者使用国内各种大厂提供的镜像托管服务，例如：阿里云、腾讯云
+
+> 本文档课件配套 [视频教程](https://www.bilibili.com/video/BV11L411g7U1?p=7)
+
+### 上传我们的镜像
+
+- 首先你要先 [注册一个账号](https://hub.docker.com/)
+- 创建一个镜像库
+  ![image-20220717034924303](E:\NoteFiles\containers\docker\images\new_repo.png)
+- 命令行登录账号：
+  `docker login -u username`
+- 新建一个tag，名字必须跟你注册账号一样
+  `docker tag test:v1 username/test:v1`
+- 推上去
+  `docker push username/test:v1`
+- 部署试下
+  `docker run -dp 8080:8080 username/test:v1`
+
+##### docker-compose 中也可以直接用这个镜像了
+
+```
+version: "3.7"
+
+services:
+  app:
+#    build: ./
+    image: helloguguji/test:v1
+    ports:
+      - 80:8080
+    volumes:
+      - ./:/app
+    environment:
+      - TZ=Asia/Shanghai
+  redis:
+    image: redis:5.0.13
+    volumes:
+      - redis:/data
+    environment:
+      - TZ=Asia/Shanghai
+
+volumes:
+  redis:
+```
+
+### 阿里云容器托管
+
+docker 官方的镜像托管有时候上传和下载都太慢了，如果你想要更快的速度，可以使用阿里云的免费镜像托管
+登录 [阿里云](https://www.aliyun.com/)
+
+![image.png](E:\NoteFiles\containers\docker\images\aliyun.png)
 
 
 
+## 备份和迁移数据
 
+### 迁移方式介绍
 
+容器中的数据，如果没有用挂载目录，删除容器后就会丢失数据。
+前面我们已经讲解了如何 [挂载目录](doc:kze7f0ZR)
+如果你是用`bind mount`直接把宿主机的目录挂进去容器，那迁移数据很方便，直接复制目录就好了
+如果你是用`volume`方式挂载的，由于数据是由容器创建和管理的，需要用特殊的方式把数据弄出来。
 
+> 本文档课件配套 [视频教程](https://www.bilibili.com/video/BV11L411g7U1?p=8)
 
+### 备份和导入 Volume 的流程
 
+备份：
 
+- 运行一个 ubuntu 的容器，挂载需要备份的 volume 到容器，并且挂载宿主机目录到容器里的备份目录。
+- 运行 tar 命令把数据压缩为一个文件
+- 把备份文件复制到需要导入的机器
 
+导入：
 
+- 运行 ubuntu 容器，挂载容器的 volume，并且挂载宿主机备份文件所在目录到容器里
+- 运行 tar 命令解压备份文件到指定目录
+
+### 备份 MongoDB 数据演示
+
+- 运行一个 mongodb，创建一个名叫`mongo-data`的 volume 指向容器的 /data 目录
+  `docker run -p 27018:27017 --name mongo -v mongo-data:/data -d mongo:4.4`
+- 运行一个 Ubuntu 的容器，挂载`mongo`容器的所有 volume，映射宿主机的 backup 目录到容器里面的 /backup 目录，然后运行 tar 命令把数据压缩打包
+  `docker run --rm --volumes-from mongo -v d:/backup:/backup ubuntu tar cvf /backup/backup.tar /data/`
+
+最后你就可以拿着这个 backup.tar 文件去其他地方导入了。
+
+### 恢复 Volume 数据演示
+
+- 运行一个 ubuntu 容器，挂载 mongo 容器的所有 volumes，然后读取 /backup 目录中的备份文件，解压到 /data/ 目录
+  `docker run --rm --volumes-from mongo -v d:/backup:/backup ubuntu bash -c "cd /data/ && tar xvf /backup/backup.tar --strip 1"`
 
 
 

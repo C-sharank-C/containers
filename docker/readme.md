@@ -1,1 +1,1 @@
-There are some notes during my docker studying.
+There are some notes about my docker studying.

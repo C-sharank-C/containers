@@ -1,0 +1,1 @@
+There are some notes about my k8s studing.

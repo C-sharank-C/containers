@@ -538,6 +538,10 @@ docker 官方的镜像托管有时候上传和下载都太慢了，如果你想�
 
 ### 恢复 Volume 数据演示
 
+> **数据库连接27018端口失败，以下未能进行实操**
+
+- 运行一个 mongodb，重新创建一个名叫`mongo-data`的 volume 指向容器的 /data 目录，宿主机端口27018
+  `docker run -p 27018:27017 --name mongo -v mongo-data:/data -d mongo:4.4`
 - 运行一个 ubuntu 容器，挂载 mongo 容器的所有 volumes，然后读取 /backup 目录中的备份文件，解压到 /data/ 目录
   `docker run --rm --volumes-from mongo -v d:/backup:/backup ubuntu bash -c "cd /data/ && tar xvf /backup/backup.tar --strip 1"`
 

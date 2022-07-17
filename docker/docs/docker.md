@@ -521,8 +521,16 @@ docker 官方的镜像托管有时候上传和下载都太慢了，如果你想�
 
 ### 备份 MongoDB 数据演示
 
+> 下载mongodb及其图形化管理界面 Robo 3T
+>
+> 添加MongoDB服务，并到服务里启动
+>
+> .\mongod --dbpath "f:\mongodb\data" --logpath "f:\mongodb\logs\mongo.log" --install --serviceName "MongoDB"
+>
+> ![image-20220717141448749](E:\NoteFiles\containers\docker\images\mongodb_service.png)
+
 - 运行一个 mongodb，创建一个名叫`mongo-data`的 volume 指向容器的 /data 目录
-  `docker run -p 27018:27017 --name mongo -v mongo-data:/data -d mongo:4.4`
+  `docker run -p 27017:27017 --name mongo -v mongo-data:/data -d mongo:4.4`
 - 运行一个 Ubuntu 的容器，挂载`mongo`容器的所有 volume，映射宿主机的 backup 目录到容器里面的 /backup 目录，然后运行 tar 命令把数据压缩打包
   `docker run --rm --volumes-from mongo -v d:/backup:/backup ubuntu tar cvf /backup/backup.tar /data/`
 
